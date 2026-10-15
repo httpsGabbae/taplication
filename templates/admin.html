@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f8fc">
+  <title>Admin ledger · TapLication</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="robots" content="noindex,nofollow">
+</head>
+<body>
+  {% include '_demo_banner.html' %}
+  <div class="site-shell admin-shell">
+    <header class="site-nav"><a class="wordmark" href="{{ url_for('landing') }}"><span class="brand-mark">T</span> TapLication <span class="admin-tag">ADMIN DEMO</span></a><nav aria-label="Admin navigation"><a class="nav-active" href="{{ url_for('admin') }}" aria-current="page">Ledger</a><a href="{{ url_for('encode') }}">Digitize</a><form action="{{ url_for('staff_logout') }}" method="post" class="inline-form"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="nav-button" type="submit">Leave admin</button></form></nav></header>
+    <main class="admin-main">
+      <div class="admin-heading"><div><span class="eyebrow">Admissions workspace</span><h1>Application ledger</h1><p>Review fictional records, update a status, or open a QR pass. Demo changes can reset.</p></div><a class="btn" href="{{ url_for('encode') }}">Digitize a record <span aria-hidden="true">↗</span></a></div>
+      {% with messages = get_flashed_messages() %}{% if messages %}<div class="flashes" role="status">{% for message in messages %}<div class="flash-item">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+      <div class="ledger-toolbar surface"><div><span class="section-kicker">Applications</span><strong>{{ applications|length }} {{ 'record' if applications|length == 1 else 'records' }}</strong></div><div class="form-group"><label for="ledger-search">Search ledger</label><input id="ledger-search" type="search" placeholder="Name, reference or program" autocomplete="off"></div></div>
+      <div class="record-list" id="record-list">
+      {% for app in applications %}
+        <article class="record-card surface" data-search="{{ app.student_number }} {{ app.first_name }} {{ app.middle_name }} {{ app.last_name }} {{ app.course }}">
+          <div class="record-top"><div class="record-identity"><span class="reference-code">{{ app.student_number }}</span><h2>{{ [app.first_name, app.middle_name, app.last_name, app.suffix] | select | join(' ') }}</h2><p>{{ app.course }} · {{ app.applicant_type }}</p></div><span class="status-pill status-{{ app.status | lower }}">{{ app.status }}</span></div>
+          <div class="record-meta"><span>AY {{ app.school_year }}</span><span>{{ app.submitted_at }}</span><span>{{ app.source|capitalize }}</span></div>
+          <div class="record-actions"><a class="btn btn-secondary" href="{{ url_for('tap_card', student_number=app.student_number) }}">Open pass <span aria-hidden="true">↗</span></a><form action="{{ url_for('update_status', id=app.id) }}" method="post" class="status-form"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><label for="status-{{ app.id }}">Status</label><select id="status-{{ app.id }}" name="status"><option value="Pending" {% if app.status == 'Pending' %}selected{% endif %}>Pending</option><option value="Accepted" {% if app.status == 'Accepted' %}selected{% endif %}>Accepted</option><option value="Rejected" {% if app.status == 'Rejected' %}selected{% endif %}>Rejected</option></select><button class="btn btn-secondary" type="submit">Save</button></form></div>
+          <details class="record-details"><summary>View record details</summary><dl><div><dt>Previous school</dt><dd>{{ app.last_school_attended or '—' }} · {{ app.year_graduated or '—' }}</dd></div><div><dt>Contact</dt><dd>{{ app.email or '—' }} · {{ app.contact_number or '—' }}</dd></div><div><dt>Guardian</dt><dd>{{ app.guardian_name or '—' }} · {{ app.guardian_contact or '—' }}</dd></div><div><dt>PSA registry</dt><dd>{{ app.psa_registry_number or '—' }} · {{ app.psa_birth_date or '—' }}</dd></div><div><dt>School record</dt><dd>{{ app.tor_lrn or app.tor_college_student_no or '—' }} · {{ app.tor_general_average or app.tor_college_cumulative_gwa or '—' }}</dd></div></dl>
+            {% if app.pic_2x2_filename or app.pic_1x1_filename or app.psa_birth_cert_filename or app.transcript_filename or app.marriage_contract_filename %}<div class="attachment-list"><strong>Attachments</strong>{% if app.pic_2x2_filename %}<a href="{{ url_for('uploaded_file', filename=app.pic_2x2_filename) }}">2×2 photo</a>{% endif %}{% if app.pic_1x1_filename %}<a href="{{ url_for('uploaded_file', filename=app.pic_1x1_filename) }}">1×1 photo</a>{% endif %}{% if app.psa_birth_cert_filename %}<a href="{{ url_for('uploaded_file', filename=app.psa_birth_cert_filename) }}">PSA certificate</a>{% endif %}{% if app.transcript_filename %}{% for tfile in app.transcript_filename.split(';') %}<a href="{{ url_for('uploaded_file', filename=tfile) }}">School record {{ loop.index }}</a>{% endfor %}{% endif %}{% if app.marriage_contract_filename %}<a href="{{ url_for('uploaded_file', filename=app.marriage_contract_filename) }}">Marriage certificate</a>{% endif %}</div>{% endif %}
+            <form action="{{ url_for('delete_application', id=app.id) }}" method="post" class="delete-form" onsubmit="return confirm('Delete fictional record {{ app.student_number }}?')"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="text-action danger-text" type="submit">Delete this record</button></form>
+          </details>
+        </article>
+      {% else %}
+        <div class="empty-ledger surface"><span class="empty-symbol" aria-hidden="true">▤</span><h2>No applications yet</h2><p>Submit a fictional application to see it in the ledger.</p><a class="btn" href="{{ url_for('index') }}">Try the application</a></div>
+      {% endfor %}
+      </div>
+      <p id="no-search-results" class="quiet-note" hidden>No records match that search.</p>
+    </main>
+  </div>
+  <script>const ledgerSearch = document.getElementById('ledger-search'); ledgerSearch?.addEventListener('input', () => { let visible = 0; document.querySelectorAll('.record-card').forEach(card => { const show = card.dataset.search.toLowerCase().includes(ledgerSearch.value.trim().toLowerCase()); card.hidden = !show; if (show) visible++; }); document.getElementById('no-search-results').hidden = visible !== 0 || !ledgerSearch.value.trim(); });</script>
+</body>
+</html>

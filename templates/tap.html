@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f8fc">
+  <title>Applicant pass · {{ app.student_number }} · TapLication</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% include '_demo_banner.html' %}
+  <div class="site-shell">
+    <header class="site-nav no-print"><a class="wordmark" href="{{ url_for('landing') }}"><span class="brand-mark">T</span> TapLication</a><nav aria-label="Main navigation"><a href="{{ url_for('landing') }}">Home</a><a href="{{ url_for('index') }}">Apply</a><a href="{{ url_for('status_lookup') }}">Find my pass</a></nav></header>
+    <main class="pass-page">
+      <div class="page-intro no-print"><span class="eyebrow">Application complete</span><h1>Your pass is ready.</h1><p>Save or print it. Your QR lets you open the pass again without retyping your details.</p></div>
+      {% with messages = get_flashed_messages() %}{% if messages %}<div class="flashes no-print" role="status">{% for message in messages %}<div class="flash-item">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+      <article class="pass-document">
+        <div class="pass-document-head"><div class="wordmark"><span class="brand-mark">T</span> TapLication</div><span class="document-label">APPLICANT PASS</span></div>
+        <div class="pass-document-main"><div><span class="section-kicker">Applicant</span><h2>{{ [app.first_name, app.middle_name, app.last_name, app.suffix] | select | join(' ') }}</h2><span class="status-pill status-{{ app.status | lower }}">{{ app.status }}</span></div><div class="pass-year">AY {{ app.school_year }}</div></div>
+        <div class="pass-details"><div><span>Reference number</span><strong class="reference-code">{{ app.student_number }}</strong></div><div><span>Program</span><strong>{{ app.course }}</strong></div><div><span>Classification</span><strong>{{ app.applicant_type }} · {{ app.year_level }}</strong></div></div>
+        <div class="pass-qr-row"><div class="qr-image-wrap"><img src="{{ url_for('tap_qr', student_number=app.student_number, token=pass_token) }}" width="176" height="176" alt="QR code that opens this applicant pass"></div><div><span class="section-kicker">Scan to open</span><h3>Keep this QR with you.</h3><p>Point a phone camera at the QR or use Find my pass on this site. Anyone with the QR can view your name, program and status.</p></div></div>
+        <div class="pass-document-foot"><span>TapLication · Admissions demo</span><span>Reference {{ app.student_number }}</span></div>
+      </article>
+      {% if staff_view %}
+      <section class="staff-details surface"><div class="section-heading"><div><span class="section-kicker">Admin details</span><h2>Record overview</h2></div></div><dl><div><dt>Previous school</dt><dd>{{ app.last_school_attended or '—' }} ({{ app.year_graduated or '—' }})</dd></div><div><dt>PSA registry</dt><dd>{{ app.psa_registry_number or '—' }}</dd></div><div><dt>School record</dt><dd>{{ app.tor_lrn or app.tor_college_student_no or '—' }}</dd></div></dl><a class="text-link" href="{{ url_for('admin') }}">Back to ledger →</a></section>
+      {% endif %}
+      <div class="pass-actions no-print"><button class="btn" type="button" onclick="window.print()">Print pass</button><a class="btn btn-secondary" href="{{ url_for('status_lookup') }}">Find another pass</a></div>
+      <p class="quiet-note no-print">This is a fictional school-project pass. {{ 'Records may reset in the online demo.' if demo_mode else 'Keep your reference number for status checks.' }}</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "excludeFiles": "{.env,.env.*,tests/**,uploads/**,venv/**,.vercel/**,.uv-cache/**,.uv-python/**,**/*.db,**/*.db-*,__pycache__/**,MVP.txt,plan-canvas.html}"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f8fc">
+  <title>TapLication · A clearer way to apply</title>
+  <meta name="description" content="A school-project admissions demo with application forms, QR passes and a simple status lookup.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  {% include '_demo_banner.html' %}
+  <div class="site-shell">
+    <header class="site-nav">
+      <a class="wordmark" href="{{ url_for('landing') }}"><span class="brand-mark">T</span> TapLication</a>
+      <nav aria-label="Main navigation"><a class="nav-active" href="{{ url_for('landing') }}" aria-current="page">Home</a><a href="{{ url_for('index') }}">Apply</a><a href="{{ url_for('status_lookup') }}">Find my pass</a></nav>
+    </header>
+    <main>
+      <section class="hero-v2">
+        <div class="hero-copy">
+          <span class="eyebrow"><span class="eyebrow-dot"></span> Admissions, simplified</span>
+          <h1>Your next chapter starts here<span class="accent-period">.</span></h1>
+          <p>{% if demo_mode %}Try a complete college application with fictional details. Get a sample pass, print its QR code, and see how status lookup works.{% else %}Apply for Computer Science or Computer Engineering, review your details and keep your QR pass close.{% endif %}</p>
+          <div class="hero-actions"><a class="btn btn-large" href="{{ url_for('index') }}">Start an application <span aria-hidden="true">↗</span></a><a class="btn btn-secondary btn-large" href="{{ url_for('status_lookup') }}">Find my pass</a></div>
+          <div class="hero-assurance"><span class="assurance-symbol" aria-hidden="true">✓</span><span>{{ 'School project · fictional information only' if demo_mode else 'Clear steps · review before submitting' }}</span></div>
+        </div>
+        <div class="hero-visual" aria-label="Illustration of a sample applicant pass">
+          <div class="visual-glow"></div>
+          <div class="sample-pass">
+            <div class="sample-pass-top"><div><span class="sample-overline">TAPLICATION / APPLICANT PASS</span><strong>Alex Example</strong><span>BS Computer Science · First year</span></div><span class="sample-status">Pending</span></div>
+            <div class="sample-pass-bottom"><div class="sample-qr" aria-hidden="true"></div><div><span class="sample-overline">REFERENCE NUMBER</span><strong>FR-2026-48210</strong><span>Scan to open this pass</span></div></div>
+          </div>
+          <div class="visual-note"><span class="visual-note-icon" aria-hidden="true">⌗</span><span>One QR. A simple way back to your pass.</span></div>
+        </div>
+      </section>
+      <section class="journey-section" aria-labelledby="journey-title">
+        <div class="section-heading"><div><span class="section-kicker">How it works</span><h2 id="journey-title">Three steps. One clear path.</h2></div><p>Every step is visible, so you always know what comes next.</p></div>
+        <div class="journey-grid">
+          <article class="journey-card"><span class="step-number">01</span><div class="journey-icon" aria-hidden="true">✎</div><h3>Fill in your details</h3><p>{{ 'Use fictional identity and school information for this demo.' if demo_mode else 'Complete the form and review your information carefully.' }}</p></article>
+          <article class="journey-card"><span class="step-number">02</span><div class="journey-icon" aria-hidden="true">✓</div><h3>Submit and save</h3><p>Receive a reference number and a QR pass when you finish.</p></article>
+          <article class="journey-card"><span class="step-number">03</span><div class="journey-icon" aria-hidden="true">⌗</div><h3>Find your pass</h3><p>Scan your printed QR or use your reference number and last name.</p></article>
+        </div>
+      </section>
+      <section class="closing-cta"><div><span class="section-kicker">Ready when you are</span><h2>Make your application simple.</h2><p>{{ 'Explore the school project safely with sample data.' if demo_mode else 'Start today and keep your pass for easy status checks.' }}</p></div><a class="btn btn-large" href="{{ url_for('index') }}">Start now <span aria-hidden="true">→</span></a></section>
+    </main>
+    <footer class="site-footer"><span>© TapLication · School project</span><span>{{ 'Fictional data only · demo records can reset' if demo_mode else 'Admissions portal' }}</span></footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digitize Old Records</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% include '_demo_banner.html' %}
+    <header class="site-nav"><a class="wordmark" href="{{ url_for('landing') }}"><span class="brand-mark">T</span> TapLication <span class="admin-tag">ADMIN DEMO</span></a><nav aria-label="Admin navigation"><a href="{{ url_for('admin') }}">Ledger</a><a class="nav-active" href="{{ url_for('encode') }}" aria-current="page">Digitize</a><form action="{{ url_for('staff_logout') }}" method="post" class="inline-form"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="nav-button" type="submit">Leave admin</button></form></nav></header>
+    <div class="container application-card">
+        <div class="header">
+            <span class="eyebrow">Admin workspace</span>
+            <h1>Digitize a record.</h1>
+            <p class="subtitle">Enter a fictional paper record to add it to the demo ledger.</p>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="flashes">
+            {% for message in messages %}
+              <div class="flash-item">{{ message }}</div>
+            {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <div class="steps-note">One person's papers per batch. <small>Details are copied from your uploads — please verify.</small></div>
+
+        <!-- Review pop-up: PSA -->
+        <div id="aiLensPsaModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>PSA Verification</h2>
+                    <span class="modal-close" onclick="closePsaModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-subtitle"><small>Copied from your upload — please verify.</small></p>
+                    <h4 class="modal-section-title">Child</h4>
+                    <div class="extracted-fields-grid">
+                        <div class="modal-field"><label>First Name:</label><input type="text" id="psa_first_name"></div>
+                        <div class="modal-field"><label>Middle Name:</label><input type="text" id="psa_middle_name"></div>
+                        <div class="modal-field"><label>Last Name:</label><input type="text" id="psa_last_name"></div>
+                        <div class="modal-field"><label>Suffix:</label><input type="text" id="psa_suffix"></div>
+                        <div class="modal-field"><label>Sex:</label>
+                            <select id="psa_gender">
+                                <option value="">-- Unreadable --</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                            </select>
+                        </div>
+                        <div class="modal-field"><label>Date of Birth:</label><input type="date" id="psa_psa_birth_date"></div>
+                        <div class="modal-field"><label>Place of Birth:</label><input type="text" id="psa_psa_birth_place"></div>
+                        <div class="modal-field"><label>Registry No.:</label><input type="text" id="psa_psa_registry_number"></div>
+                    </div>
+                    <h4 class="modal-section-title">Parents</h4>
+                    <div class="extracted-fields-grid">
+                        <div class="modal-field"><label>Mother's Maiden Name:</label><input type="text" id="psa_psa_mother_name"></div>
+                        <div class="modal-field"><label>Father's Full Name:</label><input type="text" id="psa_psa_father_name"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closePsaModal()">Later</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmPsaData()">Confirm PSA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review pop-up: school record -->
+        <div id="aiLensTorModal" class="modal-overlay" style="display: none;">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h2>School Record Verification</h2>
+                    <span class="modal-close" onclick="closeTorModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-subtitle"><small>Copied from your upload — please verify.</small></p>
+                    <div id="torTypeWarning" class="flash-item" style="display:none; margin-bottom:10px;"></div>
+                    <div id="torNameWarning" class="flash-item" style="display:none; margin-bottom:10px;"></div>
+                    <h4 class="modal-section-title">Student</h4>
+                    <div class="extracted-fields-grid">
+                        <div class="modal-field"><label>First Name:</label><input type="text" id="tor_first_name"></div>
+                        <div class="modal-field"><label>Middle Name:</label><input type="text" id="tor_middle_name"></div>
+                        <div class="modal-field"><label>Last Name:</label><input type="text" id="tor_last_name"></div>
+                        <div class="modal-field"><label>ID No.:</label><input type="text" id="tor_student_id"></div>
+                    </div>
+                    <div id="sf10Fields">
+                        <h4 class="modal-section-title">SHS Record</h4>
+                        <div class="extracted-fields-grid">
+                            <div class="modal-field"><label>LRN (12 digits):</label><input type="text" id="tor_tor_lrn" maxlength="12"></div>
+                            <div class="modal-field"><label>Track &amp; Strand:</label><input type="text" id="tor_tor_shs_track_strand"></div>
+                            <div class="modal-field"><label>General Average:</label><input type="text" id="tor_tor_general_average"></div>
+                            <div class="modal-field"><label>School ID:</label><input type="text" id="tor_tor_school_id"></div>
+                            <div class="modal-field"><label>School Name:</label><input type="text" id="tor_last_school"></div>
+                            <div class="modal-field"><label>Year Graduated:</label><input type="number" id="tor_year_graduated"></div>
+                        </div>
+                    </div>
+                    <div id="collegeTorFields" style="display:none;">
+                        <h4 class="modal-section-title">College Record</h4>
+                        <div class="extracted-fields-grid">
+                            <div class="modal-field full-width"><label>Program / Degree:</label><input type="text" id="ctor_program"></div>
+                            <div class="modal-field"><label>Student No.:</label><input type="text" id="ctor_student_no"></div>
+                            <div class="modal-field"><label>Cumulative GWA:</label><input type="text" id="ctor_cum_gwa"></div>
+                            <div class="modal-field"><label>Total Units:</label><input type="text" id="ctor_units"></div>
+                            <div class="modal-field"><label>Graduation Date:</label><input type="text" id="ctor_grad_date"></div>
+                            <div class="modal-field full-width"><label>School Name:</label><input type="text" id="ctor_school"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeTorModal()">Later</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmTorData()">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <form id="encodeForm" action="{{ url_for('encode_submit') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <fieldset>
+                <legend>1. Academic Details</legend>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="school_year">School Year</label>
+                        <select id="school_year" name="school_year">
+                            <option value="2000-2001">2000 - 2001</option>
+                            <option value="2001-2002">2001 - 2002</option>
+                            <option value="2002-2003">2002 - 2003</option>
+                            <option value="2003-2004">2003 - 2004</option>
+                            <option value="2004-2005">2004 - 2005</option>
+                            <option value="2005-2006">2005 - 2006</option>
+                            <option value="2006-2007">2006 - 2007</option>
+                            <option value="2007-2008">2007 - 2008</option>
+                            <option value="2008-2009">2008 - 2009</option>
+                            <option value="2009-2010">2009 - 2010</option>
+                            <option value="2010-2011">2010 - 2011</option>
+                            <option value="2011-2012">2011 - 2012</option>
+                            <option value="2012-2013">2012 - 2013</option>
+                            <option value="2013-2014">2013 - 2014</option>
+                            <option value="2014-2015">2014 - 2015</option>
+                            <option value="2015-2016">2015 - 2016</option>
+                            <option value="2016-2017">2016 - 2017</option>
+                            <option value="2017-2018">2017 - 2018</option>
+                            <option value="2018-2019">2018 - 2019</option>
+                            <option value="2019-2020">2019 - 2020</option>
+                            <option value="2020-2021">2020 - 2021</option>
+                            <option value="2021-2022">2021 - 2022</option>
+                            <option value="2022-2023">2022 - 2023</option>
+                            <option value="2023-2024">2023 - 2024</option>
+                            <option value="2024-2025">2024 - 2025</option>
+                            <option value="2025-2026">2025 - 2026</option>
+                            <option value="2026-2027" selected>2026 - 2027</option>
+                            <option value="2027-2028">2027 - 2028</option>
+                            <option value="2028-2029">2028 - 2029</option>
+                            <option value="2029-2030">2029 - 2030</option>
+                            <option value="2030-2031">2030 - 2031</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="applicant_type">Classification</label>
+                        <select id="applicant_type" name="applicant_type" onchange="handleApplicantTypeChange()">
+                            <option value="New Freshman" selected>New Freshman</option>
+                            <option value="Transferee">Transferee</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="year_level">Year Level</label>
+                        <select id="year_level" name="year_level">
+                            <option value="1st Year">1st Year</option>
+                            <option value="2nd Year">2nd Year</option>
+                            <option value="3rd Year">3rd Year</option>
+                            <option value="4th Year">4th Year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="course">Program</label>
+                        <select id="course" name="course">
+                            <option value="" disabled selected>-- Select --</option>
+                            <option value="Bachelor of Science in Computer Science (BSCS)">BS Computer Science (BSCS)</option>
+                            <option value="Bachelor of Science in Computer Engineering (BSCpE)">BS Computer Engineering (BSCpE)</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>2A. PSA Scan (optional)</legend>
+                <div class="scan-row">
+                    <div class="form-group grow">
+                        <label for="psa_birth_cert">PSA file</label>
+                        <input type="file" id="psa_birth_cert" name="psa_birth_cert" accept=".pdf, .jpg, .jpeg, .png" {{ 'disabled' if demo_mode }} onchange="notifyPsaReady()">
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-ai-lens" id="btnScanPsa" {{ 'disabled' if demo_mode }} onclick="triggerPsaScan()">Scan PSA</button>
+                    </div>
+                </div>
+                <div id="psaScanStatus" class="scan-status-text"></div>
+                <div class="scan-progress" id="psaProgress">
+                    <div class="scan-progress-top"><span class="scan-progress-phase" id="psaPhase">Uploading…</span><span class="scan-progress-pct" id="psaPct">0%</span></div>
+                    <div class="scan-progress-track"><div class="scan-progress-fill" id="psaFill"></div></div>
+                    <div class="scan-progress-sub"><span id="psaSub"></span><button type="button" class="scan-progress-cancel" id="psaCancel">Cancel</button></div>
+                </div>
+                <div id="psaConfirmedBadge" class="scan-status-text">PSA not yet confirmed</div>
+            </fieldset>
+
+            <fieldset>
+                <legend>2B. School Record Scans (optional, all pages)</legend>
+                <p class="hint" id="tor_hint">DepEd SF10 / Form 137.</p>
+                <div class="scan-row">
+                    <div class="form-group grow">
+                        <label for="transcript" id="transcript_label">School record files</label>
+                        <input type="file" id="transcript" name="transcript" accept=".pdf, .jpg, .jpeg, .png" multiple {{ 'disabled' if demo_mode }} onchange="notifyTorReady()">
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn btn-ai-lens" id="btnScanTor" {{ 'disabled' if demo_mode }} onclick="triggerTorScan()">Scan Record</button>
+                    </div>
+                </div>
+                <div id="torScanStatus" class="scan-status-text"></div>
+                <div class="scan-progress" id="torProgress">
+                    <div class="scan-progress-top"><span class="scan-progress-phase" id="torPhase">Uploading…</span><span class="scan-progress-pct" id="torPct">0%</span></div>
+                    <div class="scan-progress-track"><div class="scan-progress-fill" id="torFill"></div></div>
+                    <div class="scan-progress-sub"><span id="torSub"></span><button type="button" class="scan-progress-cancel" id="torCancel">Cancel</button></div>
+                </div>
+                <div id="torConfirmedBadge" class="scan-status-text">Record not yet scanned</div>
+                <div class="form-grid" style="margin-top:12px;">
+                    <div class="form-group">
+                        <label for="pic_2x2">2x2 Photo</label>
+                        <input type="file" id="pic_2x2" name="pic_2x2" accept=".jpg, .jpeg, .png" {{ 'disabled' if demo_mode }}>
+                    </div>
+                    <div class="form-group">
+                        <label for="pic_1x1">1x1 Photo</label>
+                        <input type="file" id="pic_1x1" name="pic_1x1" accept=".jpg, .jpeg, .png" {{ 'disabled' if demo_mode }}>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="highlight-fieldset">
+                <legend>3. PSA Details</legend>
+                <div class="form-grid">
+                    <div class="form-group"><label for="psa_birth_date">Date of Birth</label><input type="date" id="psa_birth_date" name="psa_birth_date"></div>
+                    <div class="form-group"><label for="psa_birth_place">Place of Birth</label><input type="text" id="psa_birth_place" name="psa_birth_place"></div>
+                    <div class="form-group"><label for="psa_registry_number">Civil Registry No.</label><input type="text" id="psa_registry_number" name="psa_registry_number"></div>
+                    <div class="form-group"><label for="psa_mother_name">Mother's Maiden Name</label><input type="text" id="psa_mother_name" name="psa_mother_name"></div>
+                    <div class="form-group full-width"><label for="psa_father_name">Father's Full Name</label><input type="text" id="psa_father_name" name="psa_father_name"></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="highlight-fieldset" id="sf10Section">
+                <legend id="school_section_legend">4. SHS Scholastic Details</legend>
+                <div class="form-grid">
+                    <div class="form-group" id="torLrnGroup"><label for="tor_lrn" id="tor_lrn_label">Learner Reference Number (12 Digits)</label><input type="text" id="tor_lrn" name="tor_lrn" maxlength="12"></div>
+                    <div class="form-group" id="torStrandGroup"><label for="tor_shs_track_strand" id="tor_strand_label">SHS Track &amp; Strand</label><input type="text" id="tor_shs_track_strand" name="tor_shs_track_strand"></div>
+                    <div class="form-group" id="torGwaGroup"><label for="tor_general_average" id="tor_gwa_label">General Average</label><input type="text" id="tor_general_average" name="tor_general_average"></div>
+                    <div class="form-group" id="torSchoolIdGroup"><label for="tor_school_id">School ID</label><input type="text" id="tor_school_id" name="tor_school_id"></div>
+                </div>
+            </fieldset>
+
+            <input type="hidden" name="psa_mother_citizenship" id="f_psa_mother_citizenship">
+            <input type="hidden" name="psa_mother_religion" id="f_psa_mother_religion">
+            <input type="hidden" name="psa_mother_occupation" id="f_psa_mother_occupation">
+            <input type="hidden" name="psa_father_citizenship" id="f_psa_father_citizenship">
+            <input type="hidden" name="psa_father_religion" id="f_psa_father_religion">
+            <input type="hidden" name="psa_father_occupation" id="f_psa_father_occupation">
+            <input type="hidden" name="psa_parents_marriage_date" id="f_psa_parents_marriage_date">
+            <input type="hidden" name="psa_parents_marriage_place" id="f_psa_parents_marriage_place">
+            <input type="hidden" name="psa_type_of_birth" id="f_psa_type_of_birth">
+            <input type="hidden" name="psa_birth_order" id="f_psa_birth_order">
+            <input type="hidden" name="psa_weight_grams" id="f_psa_weight_grams">
+            <input type="hidden" name="psa_attendant" id="f_psa_attendant">
+            <input type="hidden" name="psa_informant_name" id="f_psa_informant_name">
+            <input type="hidden" name="psa_informant_relationship" id="f_psa_informant_relationship">
+            <input type="hidden" name="psa_prepared_by" id="f_psa_prepared_by">
+            <input type="hidden" name="psa_received_date" id="f_psa_received_date">
+            <input type="hidden" name="tor_school_address" id="f_tor_school_address">
+            <input type="hidden" name="tor_school_year" id="f_tor_school_year">
+            <input type="hidden" name="tor_graduation_date" id="f_tor_graduation_date">
+            <input type="hidden" name="tor_section" id="f_tor_section">
+            <input type="hidden" name="tor_adviser_name" id="f_tor_adviser_name">
+            <input type="hidden" name="tor_principal_name" id="f_tor_principal_name">
+            <input type="hidden" name="tor_jhs_general_average" id="f_tor_jhs_general_average">
+            <input type="hidden" name="tor_jhs_school" id="f_tor_jhs_school">
+            <input type="hidden" name="tor_jhs_school_id" id="f_tor_jhs_school_id">
+            <input type="hidden" name="tor_gwa_scale" id="f_tor_gwa_scale">
+            <input type="hidden" name="tor_college_program" id="f_tor_college_program">
+            <input type="hidden" name="tor_college_student_no" id="f_tor_college_student_no">
+            <input type="hidden" name="tor_college_sem_gwa" id="f_tor_college_sem_gwa">
+            <input type="hidden" name="tor_college_cumulative_gwa" id="f_tor_college_cumulative_gwa">
+            <input type="hidden" name="tor_gwa_computed" id="f_tor_gwa_computed">
+            <input type="hidden" name="tor_gwa_method" id="f_tor_gwa_method">
+            <input type="hidden" name="tor_total_units_earned" id="f_tor_total_units_earned">
+            <input type="hidden" name="tor_so_number" id="f_tor_so_number">
+            <input type="hidden" name="tor_subjects_found" id="f_tor_subjects_found">
+            <input type="hidden" name="tor_registrar_name" id="f_tor_registrar_name">
+            <input type="hidden" name="tor_purpose" id="f_tor_purpose">
+            <input type="hidden" name="extraction_confidence" id="f_extraction_confidence">
+            <input type="hidden" name="extraction_doc_types" id="f_extraction_doc_types">
+
+            <fieldset>
+                <legend>5. Personal Information</legend>
+                <div class="form-grid">
+                    <div class="form-group"><label for="first_name">First Name *</label><input type="text" id="first_name" name="first_name" required></div>
+                    <div class="form-group"><label for="middle_name">Middle Name</label><input type="text" id="middle_name" name="middle_name"></div>
+                    <div class="form-group"><label for="last_name">Last Name *</label><input type="text" id="last_name" name="last_name" required></div>
+                    <div class="form-group"><label for="suffix">Suffix</label><input type="text" id="suffix" name="suffix"></div>
+                    <div class="form-group"><label for="gender">Sex</label>
+                        <select id="gender" name="gender"><option value="Male">Male</option><option value="Female">Female</option></select>
+                    </div>
+                    <div class="form-group"><label for="civil_status">Civil Status</label>
+                        <select id="civil_status" name="civil_status"><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option></select>
+                    </div>
+                    <div class="form-group"><label for="email">Email</label><input type="email" id="email" name="email"></div>
+                    <div class="form-group"><label for="contact_number">Mobile Number</label><input type="tel" id="contact_number" name="contact_number"></div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>6. Address</legend>
+                <div class="form-grid">
+                    <div class="form-group full-width"><label for="address">Complete Address</label><input type="text" id="address" name="address"></div>
+                    <div class="form-group"><label for="zip_code">ZIP Code</label><input type="text" id="zip_code" name="zip_code"></div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>7. Parent / Guardian</legend>
+                <div class="form-grid">
+                    <div class="form-group"><label for="guardian_name">Full Name</label><input type="text" id="guardian_name" name="guardian_name"></div>
+                    <div class="form-group"><label for="guardian_relationship">Relationship</label>
+                        <select id="guardian_relationship" name="guardian_relationship"><option value="Mother">Mother</option><option value="Father">Father</option><option value="Legal Guardian">Legal Guardian</option><option value="Sibling">Sibling</option><option value="Relative">Other Relative</option></select>
+                    </div>
+                    <div class="form-group full-width"><label for="guardian_contact">Contact Number</label><input type="tel" id="guardian_contact" name="guardian_contact"></div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>8. Previous School</legend>
+                <div class="form-grid">
+                    <div class="form-group full-width"><label for="last_school_attended" id="school_label">Last School Attended</label><input type="text" id="last_school_attended" name="last_school_attended"></div>
+                    <div class="form-group"><label for="year_graduated">Year Graduated</label><input type="number" id="year_graduated" name="year_graduated" min="1970" max="2040"></div>
+                </div>
+            </fieldset>
+
+            {% if demo_mode %}<label class="consent-row"><input type="checkbox" name="demo_ack" value="yes" required> I am using fictional test details only.</label>{% endif %}
+            <button type="submit" class="btn submit-btn">Save Digitized Record</button>
+        </form>
+    </div>
+
+    <script>
+        function handleApplicantTypeChange() {
+            const applicantType = document.getElementById('applicant_type').value;
+            const transferee = applicantType === 'Transferee';
+            document.getElementById('transcript_label').innerText = transferee ? "Transcript of Records (all pages)" : "Form 137 / 138 (all pages)";
+            document.getElementById('school_label').innerText = transferee ? "Previous College" : "Last School Attended";
+            document.getElementById('tor_hint').innerText = transferee ? "" : "DepEd SF10 / Form 137.";
+            document.getElementById('school_section_legend').innerText = transferee ? "4. College Details" : "4. SHS Scholastic Details";
+            document.getElementById('tor_lrn_label').innerText = transferee ? "Student ID No." : "Learner Reference Number (12 Digits)";
+            document.getElementById('tor_strand_label').innerText = transferee ? "Program / Degree" : "SHS Track & Strand";
+            document.getElementById('tor_gwa_label').innerText = transferee ? "Cumulative GWA" : "General Average";
+            document.getElementById('torSchoolIdGroup').style.display = transferee ? 'none' : 'block';
+        }
+
+        let psaConfirmedData = null;
+        let psaLastScan = null;
+        let torLastScan = null;
+        function completenessNote(data) {
+            const miss = data.missing_fields || [];
+            const conf = Math.round((data.confidence || 0) * 100);
+            if (!miss.length) return 'All key fields read (' + conf + '%). Only type what is genuinely missing on the paper.';
+            return (miss.length + ' not found on the scan — type if printed, else leave blank: ' + miss.slice(0, 8).join(', ') + ' (' + conf + '%).');
+        }
+
+        function isTransferee() {
+            return (document.getElementById('applicant_type').value || '').toLowerCase().indexOf('trans') === 0;
+        }
+
+        function notifyPsaReady() {
+            psaConfirmedData = null;
+            document.getElementById('psaConfirmedBadge').innerText = 'PSA not yet confirmed';
+            if (document.getElementById('psa_birth_cert').files[0]) {
+                const s = document.getElementById('psaScanStatus');
+                s.innerText = "PSA ready — click Scan PSA.";
+                s.style.color = "#7ee2b0";
+            }
+        }
+
+        function notifyTorReady() {
+            const files = document.getElementById('transcript').files;
+            if (files && files.length) {
+                const s = document.getElementById('torScanStatus');
+                s.innerText = files.length > 1 ? files.length + " pages ready — confirm PSA first, then Scan Record." : "Record ready — confirm PSA first, then Scan Record.";
+                s.style.color = "#7ee2b0";
+            }
+        }
+
+        // ── Scan progress: measured upload %, estimated AI-read %, real quota countdown ──
+        const scanStats = { samples: [] };
+        const scanTimers = {};
+        function expectedReadSeconds(totalBytes, pages) {
+            if (scanStats.samples.length) {
+                const s = [...scanStats.samples].sort((a, b) => a - b);
+                return Math.max(6, Math.min(90, s[Math.floor(s.length / 2)]));
+            }
+            const mb = (totalBytes || 0) / (1024 * 1024);
+            return Math.max(6, Math.min(90, 9 + 1.2 * mb + 3 * Math.max(0, (pages || 1) - 1)));
+        }
+        function postScanForm(url, formData, ctl) {
+            return new Promise((resolve, reject) => {
+                const x = new XMLHttpRequest();
+                ctl.xhr = x;
+                x.open('POST', url);
+                x.setRequestHeader('X-CSRF-Token', '{{ csrf_token() }}');
+                x.upload.onprogress = e => { if (e.lengthComputable) ctl.onUpload(e.loaded, e.total); };
+                x.onload = () => {
+                    try { resolve({ code: x.status, result: JSON.parse(x.responseText) }); }
+                    catch (e) { reject(new Error('bad-response')); }
+                };
+                x.onerror = () => reject(new Error('network'));
+                x.onabort = () => reject(new Error('cancelled'));
+                x.send(formData);
+            });
+        }
+        function makeScanCtl(ids) {
+            const $ = id => document.getElementById(id);
+            return {
+                xhr: null, t0: 0, expected: 20, totalBytes: 0, pages: 1, cooldownTimer: null, fallbackTimer: null,
+                stop() {
+                    if (scanTimers[ids.wrap]) { clearInterval(scanTimers[ids.wrap]); delete scanTimers[ids.wrap]; }
+                    if (this.cooldownTimer) { clearTimeout(this.cooldownTimer); this.cooldownTimer = null; }
+                    if (this.fallbackTimer) { clearTimeout(this.fallbackTimer); this.fallbackTimer = null; }
+                },
+                paint(pct, phase, sub, fillCls) {
+                    $(ids.wrap).classList.add('active');
+                    const f = $(ids.fill);
+                    f.style.width = Math.max(0, Math.min(100, pct)) + '%';
+                    f.className = 'scan-progress-fill' + (fillCls ? ' ' + fillCls : '');
+                    $(ids.pct).innerText = Math.round(pct) + '%';
+                    if (phase !== undefined) $(ids.phase).innerText = phase;
+                    if (sub !== undefined) $(ids.sub).innerText = sub;
+                },
+                setBtn(disabled) { const b = $(ids.btn); if (b) b.disabled = disabled; },
+                start(label, totalBytes, pages) {
+                    this.stop();
+                    if (this.xhr) { try { this.xhr.abort(); } catch (e) {} this.xhr = null; }
+                    this.totalBytes = totalBytes; this.pages = pages;
+                    this.setBtn(true);
+                    const mb = (totalBytes / (1024 * 1024)).toFixed(1);
+                    this.paint(1, 'Uploading ' + label + '…', mb + ' MB · sending…', '');
+                    $(ids.cancel).onclick = () => this.cancel();
+                    this.fallbackTimer = setTimeout(() => { if (!scanTimers[ids.wrap]) this.beginRead(); }, 2000);
+                },
+                onUpload(loaded, total) {
+                    const frac = total ? loaded / total : 0.5;
+                    const mb = ((total || this.totalBytes) / (1024 * 1024)).toFixed(1);
+                    this.paint(frac * 12, 'Uploading…', mb + ' MB · ' + Math.round(frac * 100) + '% sent', '');
+                    if (total && loaded >= total) this.beginRead();
+                },
+                beginRead() {
+                    if (scanTimers[ids.wrap]) return;
+                    if (this.fallbackTimer) { clearTimeout(this.fallbackTimer); this.fallbackTimer = null; }
+                    this.t0 = Date.now();
+                    this.expected = expectedReadSeconds(this.totalBytes, this.pages);
+                    this.paint(14, 'AI is reading…', 'elapsed 0s · usually ~' + Math.round(this.expected) + 's', '');
+                    scanTimers[ids.wrap] = setInterval(() => {
+                        const el = (Date.now() - this.t0) / 1000;
+                        const p = el / this.expected;
+                        const pct = 14 + 81 * (1 - Math.exp(-2.4 * p));
+                        const sub = el <= this.expected
+                            ? 'elapsed ' + Math.floor(el) + 's · ~' + Math.max(0, Math.ceil(this.expected - el)) + 's left (estimate)'
+                            : 'taking longer than usual · ' + Math.floor(el) + 's elapsed — still working';
+                        this.paint(pct, 'AI is reading…', sub, '');
+                    }, 250);
+                },
+                finishOk() {
+                    const secs = this.t0 ? (Date.now() - this.t0) / 1000 : 0;
+                    if (secs > 0 && secs < 300) {
+                        scanStats.samples.push(secs);
+                        if (scanStats.samples.length > 10) scanStats.samples.shift();
+                    }
+                    this.stop();
+                    this.paint(100, 'Done', secs ? 'finished in ' + secs.toFixed(0) + 's' : 'finished', 'done');
+                    this.setBtn(false);
+                    setTimeout(() => $(ids.wrap).classList.remove('active'), 3000);
+                },
+                finishError(hint) {
+                    this.stop();
+                    this.paint(100, 'Scan failed', hint || 'see message above', 'error');
+                    this.setBtn(false);
+                },
+                cooldown(total, retryFn) {
+                    this.stop();
+                    this.setBtn(true);
+                    let left = Math.max(5, Math.min(120, Math.round(total || 20)));
+                    const full = left;
+                    const step = () => {
+                        if (left <= 0) {
+                            this.paint(14, 'AI is reading…', 'quota clear — retrying…', '');
+                            retryFn();
+                            return;
+                        }
+                        this.paint(100 * (1 - left / full), 'Quota full — waiting', 'auto-retry in ' + left + 's · Google resets the limit shortly', 'cooldown');
+                        left -= 1;
+                        this.cooldownTimer = setTimeout(step, 1000);
+                    };
+                    step();
+                },
+                cancel() {
+                    this.stop();
+                    if (this.xhr) { try { this.xhr.abort(); } catch (e) {} this.xhr = null; }
+                    this.setBtn(false);
+                    $(ids.wrap).classList.remove('active');
+                }
+            };
+        }
+
+        async function triggerPsaScan() {
+            const psaInput = document.getElementById('psa_birth_cert');
+            const status = document.getElementById('psaScanStatus');
+            if (!psaInput.files[0]) { alert("Attach the PSA file first."); return; }
+            const ctl = makeScanCtl({ wrap: 'psaProgress', phase: 'psaPhase', pct: 'psaPct', fill: 'psaFill', sub: 'psaSub', cancel: 'psaCancel', btn: 'btnScanPsa' });
+            status.innerText = "Reading PSA...";
+            status.style.color = "#9ec1ff";
+            const fd = new FormData();
+            fd.append('psa_file', psaInput.files[0]);
+            ctl.start('PSA', psaInput.files[0].size || 0, 1);
+            try {
+                const { code, result: res } = await postScanForm('/api/ai-lens-scan-psa', fd, ctl);
+                if (res.success) { ctl.finishOk(); status.innerText = "PSA read — review the pop-up."; status.style.color = "#7ee2b0"; displayPsaModal(res.data); }
+                else if (res.retryable || code === 429) { ctl.cooldown(res.retry_after || 20, triggerPsaScan); status.innerText = "Quota full — waiting to retry automatically."; status.style.color = "#e0a63f"; }
+                else { ctl.finishError(res.error); status.innerText = "PSA scan: " + res.error; status.style.color = "#e56060"; }
+            } catch (e) {
+                if (e && e.message === 'cancelled') { status.innerText = "PSA scan cancelled."; return; }
+                ctl.finishError('no response from server');
+                status.innerText = "Could not reach the document reader."; status.style.color = "#e56060";
+            }
+        }
+
+        async function triggerTorScan() {
+            const psaInput = document.getElementById('psa_birth_cert');
+            const torInput = document.getElementById('transcript');
+            const status = document.getElementById('torScanStatus');
+            if (!torInput.files[0]) { alert("Attach the school record files first."); return; }
+            if (psaInput.files[0] && !psaConfirmedData) { alert("Confirm the PSA first before scanning the school record."); return; }
+            const ctl = makeScanCtl({ wrap: 'torProgress', phase: 'torPhase', pct: 'torPct', fill: 'torFill', sub: 'torSub', cancel: 'torCancel', btn: 'btnScanTor' });
+            const n = torInput.files.length;
+            status.innerText = n > 1 ? "Reading " + n + " pages..." : "Reading school record...";
+            status.style.color = "#9ec1ff";
+            const fd = new FormData();
+            let totalBytes = 0;
+            for (let i = 0; i < torInput.files.length && i < 3; i++) { fd.append('tor_file', torInput.files[i]); totalBytes += torInput.files[i].size || 0; }
+            fd.append('applicant_type', document.getElementById('applicant_type').value);
+            ctl.start(n > 1 ? n + '-page record' : 'school record', totalBytes, Math.min(3, n));
+            try {
+                const { code, result: res } = await postScanForm('/api/ai-lens-scan-tor', fd, ctl);
+                if (res.success) { ctl.finishOk(); status.innerText = "Record read — review the pop-up."; status.style.color = "#7ee2b0"; displayTorModal(res.data); }
+                else if (res.retryable || code === 429) { ctl.cooldown(res.retry_after || 20, triggerTorScan); status.innerText = "Quota full — waiting to retry automatically."; status.style.color = "#e0a63f"; }
+                else { ctl.finishError(res.error); status.innerText = "TOR scan: " + res.error; status.style.color = "#e56060"; }
+            } catch (e) {
+                if (e && e.message === 'cancelled') { status.innerText = "Record scan cancelled."; return; }
+                ctl.finishError('no response from server');
+                status.innerText = "Could not reach the document reader."; status.style.color = "#e56060";
+            }
+        }
+
+        function displayPsaModal(data) {
+            psaLastScan = data;
+            const g = (id, v) => { document.getElementById(id).value = v || ''; };
+            g('psa_first_name', data.first_name); g('psa_middle_name', data.middle_name);
+            g('psa_last_name', data.last_name); g('psa_suffix', data.suffix);
+            document.getElementById('psa_gender').value = (data.gender === 'Male' || data.gender === 'Female') ? data.gender : 'Male';
+            g('psa_psa_birth_date', data.psa_birth_date); g('psa_psa_birth_place', data.psa_birth_place);
+            g('psa_psa_registry_number', data.psa_registry_number);
+            g('psa_psa_mother_name', data.psa_mother_name); g('psa_psa_father_name', data.psa_father_name);
+            document.getElementById('psaScanStatus').innerText = 'PSA read — ' + completenessNote(data);
+            document.getElementById('aiLensPsaModal').style.display = 'flex';
+        }
+        function closePsaModal() { document.getElementById('aiLensPsaModal').style.display = 'none'; }
+
+        function confirmPsaData() {
+            const gv = id => document.getElementById(id).value;
+            document.getElementById('first_name').value = gv('psa_first_name');
+            document.getElementById('middle_name').value = gv('psa_middle_name');
+            document.getElementById('last_name').value = gv('psa_last_name');
+            document.getElementById('suffix').value = gv('psa_suffix');
+            if (gv('psa_gender')) document.getElementById('gender').value = gv('psa_gender');
+            document.getElementById('psa_birth_date').value = gv('psa_psa_birth_date');
+            document.getElementById('psa_birth_place').value = gv('psa_psa_birth_place');
+            document.getElementById('psa_registry_number').value = gv('psa_psa_registry_number');
+            document.getElementById('psa_mother_name').value = gv('psa_psa_mother_name');
+            document.getElementById('psa_father_name').value = gv('psa_psa_father_name');
+            if (psaLastScan) {
+                const hf = id => document.getElementById('f_' + id);
+                ['psa_mother_citizenship','psa_mother_religion','psa_mother_occupation','psa_father_citizenship',
+                 'psa_father_religion','psa_father_occupation','psa_parents_marriage_date','psa_parents_marriage_place',
+                 'psa_type_of_birth','psa_birth_order','psa_weight_grams','psa_attendant',
+                 'psa_informant_name','psa_informant_relationship','psa_prepared_by','psa_received_date'].forEach(k => {
+                    if (hf(k)) hf(k).value = psaLastScan[k] || '';
+                });
+                if (hf('extraction_confidence')) hf('extraction_confidence').value = psaLastScan.confidence || 0;
+                if (hf('extraction_doc_types')) hf('extraction_doc_types').value = psaLastScan.document_type || 'PSA-Form102';
+            }
+            const m = gv('psa_psa_mother_name');
+            if (m && !document.getElementById('guardian_name').value) {
+                document.getElementById('guardian_name').value = m;
+                document.getElementById('guardian_relationship').value = 'Mother';
+            }
+            psaConfirmedData = { first_name: gv('psa_first_name'), middle_name: gv('psa_middle_name'), last_name: gv('psa_last_name') };
+            closePsaModal();
+            document.getElementById('psaConfirmedBadge').innerText = 'PSA confirmed';
+            document.getElementById('psaConfirmedBadge').style.color = '#7ee2b0';
+            if (document.getElementById('transcript').files[0]) {
+                const ts = document.getElementById('torScanStatus');
+                ts.innerText = 'PSA confirmed — starting school-record scan in 6s (quota breather)…';
+                ts.style.color = '#9ec1ff';
+                setTimeout(triggerTorScan, 6000);
+            }
+        }
+
+        function displayTorModal(data) {
+            torLastScan = data;
+            const transferee = isTransferee();
+            document.getElementById('sf10Fields').style.display = transferee ? 'none' : 'block';
+            document.getElementById('collegeTorFields').style.display = transferee ? 'block' : 'none';
+            const warn = document.getElementById('torTypeWarning');
+            const notes = [];
+            if (data.pages_scanned > 1) notes.push('All ' + data.pages_scanned + ' pages were read together.');
+            if (data.type_warning) notes.push(data.type_warning);
+            if (data.tor_gwa_computed) notes.push('Average/units computed from readable rows: ' + (data.tor_gwa_method || 'weighted by units') + '. Verify against the original.');
+            notes.push(completenessNote(data));
+            if (notes.length) { warn.innerText = notes.join('\n'); warn.style.display = 'block'; } else { warn.style.display = 'none'; }
+            const g = (id, v) => { document.getElementById(id).value = (v === undefined || v === null || v === false) ? '' : v; };
+            g('tor_first_name', data.first_name); g('tor_middle_name', data.middle_name);
+            g('tor_last_name', data.last_name);
+            g('tor_student_id', data.tor_college_student_no || data.tor_lrn);
+            const nw = document.getElementById('torNameWarning');
+            if (psaConfirmedData && (data.first_name || data.last_name)) {
+                const same = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+                if (!same(data.first_name, psaConfirmedData.first_name) || !same(data.last_name, psaConfirmedData.last_name)) {
+                    nw.innerText = 'Name on school record differs from PSA — PSA record is followed.';
+                    nw.style.display = 'block';
+                } else nw.style.display = 'none';
+            } else nw.style.display = 'none';
+            g('tor_tor_lrn', data.tor_lrn); g('tor_tor_shs_track_strand', data.tor_shs_track_strand);
+            g('tor_tor_general_average', data.tor_general_average); g('tor_tor_school_id', data.tor_school_id);
+            g('tor_last_school', data.last_school_attended); g('tor_year_graduated', data.year_graduated);
+            g('ctor_program', data.tor_college_program); g('ctor_student_no', data.tor_college_student_no);
+            g('ctor_cum_gwa', data.tor_college_cumulative_gwa || data.tor_general_average);
+            g('ctor_units', data.tor_total_units_earned); g('ctor_grad_date', data.tor_graduation_date);
+            g('ctor_school', data.last_school_attended);
+            document.getElementById('aiLensTorModal').style.display = 'flex';
+        }
+        function closeTorModal() { document.getElementById('aiLensTorModal').style.display = 'none'; }
+
+        function confirmTorData() {
+            const gv = id => document.getElementById(id).value;
+            const recordId = gv('tor_student_id') || gv('ctor_student_no') || gv('tor_tor_lrn');
+            if (isTransferee()) {
+                document.getElementById('tor_general_average').value = gv('ctor_cum_gwa');
+                document.getElementById('tor_lrn').value = recordId;
+                document.getElementById('tor_shs_track_strand').value = gv('ctor_program');
+                document.getElementById('last_school_attended').value = gv('ctor_school') || gv('tor_last_school');
+                document.getElementById('year_graduated').value = gv('tor_year_graduated') || gv('ctor_grad_date').slice(0, 4);
+            } else {
+                document.getElementById('tor_lrn').value = recordId || gv('tor_tor_lrn');
+                document.getElementById('tor_shs_track_strand').value = gv('tor_tor_shs_track_strand');
+                document.getElementById('tor_general_average').value = gv('tor_tor_general_average');
+                document.getElementById('tor_school_id').value = gv('tor_tor_school_id');
+                document.getElementById('last_school_attended').value = gv('tor_last_school');
+                document.getElementById('year_graduated').value = gv('tor_year_graduated');
+            }
+            if (torLastScan) {
+                const hf2 = id => document.getElementById('f_' + id);
+                const put = (h, v) => { if (hf2(h)) hf2(h).value = v || ''; };
+                ['tor_school_address','tor_school_year','tor_graduation_date','tor_section','tor_adviser_name',
+                 'tor_principal_name','tor_jhs_general_average','tor_jhs_school','tor_jhs_school_id',
+                 'tor_gwa_scale','tor_college_program','tor_college_student_no','tor_college_sem_gwa',
+                 'tor_college_cumulative_gwa','tor_gwa_method','tor_total_units_earned','tor_so_number',
+                 'tor_registrar_name','tor_purpose'].forEach(k => put(k, torLastScan[k]));
+                put('tor_gwa_computed', torLastScan.tor_gwa_computed ? '1' : '');
+                put('tor_subjects_found', torLastScan.tor_subjects_found);
+                if (hf2('extraction_confidence')) hf2('extraction_confidence').value = torLastScan.confidence || (psaLastScan ? psaLastScan.confidence : 0);
+                if (hf2('extraction_doc_types')) {
+                    const prev = hf2('extraction_doc_types').value || '';
+                    hf2('extraction_doc_types').value = prev ? prev + '+' + (torLastScan.document_type || '') : (torLastScan.document_type || '');
+                }
+            }
+            closeTorModal();
+            document.getElementById('torConfirmedBadge').innerText = 'Record confirmed';
+            document.getElementById('torConfirmedBadge').style.color = '#7ee2b0';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() { handleApplicantTypeChange(); });
+    </script>
+</body>
+</html>

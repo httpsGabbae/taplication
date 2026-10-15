@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+uploads/
+venv/
+__pycache__/
+tests/
+plan-canvas.html
+MVP.txt
+.uv-cache/
+.uv-python/
+deploy-package/
+
+visual-qa/
+taplication-*.zip
