@@ -75,15 +75,15 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', '').strip() or secrets.token
 app.config.update(MAX_CONTENT_LENGTH=(4 if DEMO_MODE else 40) * 1024 * 1024,
                   SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
                   SESSION_COOKIE_SECURE=os.environ.get('COOKIE_SECURE', '1' if IS_VERCEL else '0') == '1')
+system_url = (os.environ.get('VERCEL_PROJECT_PRODUCTION_URL') or os.environ.get('VERCEL_URL') or '').strip()
 PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/') or (
-    'https://' + os.environ.get('VERCEL_PROJECT_PRODUCTION_URL', os.environ.get('VERCEL_URL', '')).strip()
-    if IS_VERCEL and (os.environ.get('VERCEL_PROJECT_PRODUCTION_URL') or os.environ.get('VERCEL_URL')) else '')
+    'https://' + system_url if IS_VERCEL and system_url else '')
 trusted_hosts = [h.strip() for h in os.environ.get('TRUSTED_HOSTS', '').split(',') if h.strip()]
 if not trusted_hosts and IS_VERCEL and PUBLIC_BASE_URL:
     trusted_hosts = list(dict.fromkeys(filter(None, (
         urlsplit(PUBLIC_BASE_URL).hostname, os.environ.get('VERCEL_URL'),
         os.environ.get('VERCEL_PROJECT_PRODUCTION_URL')))))
-if not trusted_hosts and DEMO_MODE and os.environ.get('APP_ENV') == 'production':
+if not trusted_hosts and DEMO_MODE and (IS_VERCEL or os.environ.get('APP_ENV') == 'production'):
     trusted_hosts = ['.vercel.app']
 if trusted_hosts:
     app.config['TRUSTED_HOSTS'] = trusted_hosts
